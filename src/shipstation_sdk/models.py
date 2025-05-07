@@ -82,7 +82,7 @@ class Shipment(BaseModel):
     notify_error_message: str | None = Field(..., alias="notifyErrorMessage")
     ship_to: ShipTo = Field(..., alias="shipTo")
     weight: Weight
-    dimensions: Dimensions
+    dimensions: Dimensions | None
     insurance_options: InsuranceOptions = Field(..., alias="insuranceOptions")
     advanced_options: AdvancedOptions = Field(..., alias="advancedOptions")
     shipment_items: None = Field(..., alias="shipmentItems")
