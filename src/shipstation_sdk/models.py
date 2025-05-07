@@ -7,17 +7,17 @@ class ShipTo(BaseModel):
     """Model for the ShipTo address."""
 
     name: str
-    company: str|None
+    company: str | None
     street1: str
     street2: str
-    street3: str|None
+    street3: str | None
     city: str
     state: str
     postal_code: str = Field(..., alias="postalCode")
     country: str
-    phone: str|None
-    residential: bool|None
-    address_verified: bool|None = Field(..., alias="addressVerified")
+    phone: str | None
+    residential: bool | None
+    address_verified: bool | None = Field(..., alias="addressVerified")
 
 
 class Weight(BaseModel):
@@ -40,7 +40,7 @@ class Dimensions(BaseModel):
 class InsuranceOptions(BaseModel):
     """Model for insurance options."""
 
-    provider: str|None
+    provider: str | None
     insure_shipment: bool = Field(..., alias="insureShipment")
     insured_value: float = Field(..., alias="insuredValue")
 
@@ -48,10 +48,10 @@ class InsuranceOptions(BaseModel):
 class AdvancedOptions(BaseModel):
     """Model for advanced options."""
 
-    bill_to_party: str |None= Field(..., alias="billToParty")
-    bill_to_account: str|None = Field(..., alias="billToAccount")
-    bill_to_postal_code: str|None = Field(..., alias="billToPostalCode")
-    bill_to_country_code: str|None = Field(..., alias="billToCountryCode")
+    bill_to_party: str | None = Field(..., alias="billToParty")
+    bill_to_account: str | None = Field(..., alias="billToAccount")
+    bill_to_postal_code: str | None = Field(..., alias="billToPostalCode")
+    bill_to_country_code: str | None = Field(..., alias="billToCountryCode")
     store_id: int = Field(..., alias="storeId")
 
 
@@ -62,7 +62,7 @@ class Shipment(BaseModel):
     order_id: int = Field(..., alias="orderId")
     order_key: str = Field(..., alias="orderKey")
     user_id: str = Field(..., alias="userId")
-    customer_email: str|None = Field(..., alias="customerEmail")
+    customer_email: str | None = Field(..., alias="customerEmail")
     order_number: str = Field(..., alias="orderNumber")
     create_date: str = Field(..., alias="createDate")
     ship_date: str = Field(..., alias="shipDate")
@@ -70,16 +70,16 @@ class Shipment(BaseModel):
     insurance_cost: float = Field(..., alias="insuranceCost")
     tracking_number: str = Field(..., alias="trackingNumber")
     is_return_label: bool = Field(..., alias="isReturnLabel")
-    batch_number: int|None = Field(..., alias="batchNumber")
+    batch_number: int | None = Field(..., alias="batchNumber")
     carrier_code: str = Field(..., alias="carrierCode")
     service_code: str = Field(..., alias="serviceCode")
-    package_code: str|None = Field(..., alias="packageCode")
-    confirmation: bool|None
+    package_code: str | None = Field(..., alias="packageCode")
+    confirmation: bool | None
     warehouse_id: int = Field(..., alias="warehouseId")
     voided: bool
-    void_date: str|None = Field(..., alias="voidDate")
+    void_date: str | None = Field(..., alias="voidDate")
     marketplace_notified: bool = Field(..., alias="marketplaceNotified")
-    notify_error_message: str|None = Field(..., alias="notifyErrorMessage")
+    notify_error_message: str | None = Field(..., alias="notifyErrorMessage")
     ship_to: ShipTo = Field(..., alias="shipTo")
     weight: Weight
     dimensions: Dimensions
