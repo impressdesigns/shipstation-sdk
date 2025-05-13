@@ -1,5 +1,7 @@
 """ShipStation API models."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 
@@ -64,7 +66,7 @@ class Shipment(BaseModel):
     user_id: str = Field(..., alias="userId")
     customer_email: str | None = Field(..., alias="customerEmail")
     order_number: str = Field(..., alias="orderNumber")
-    create_date: str = Field(..., alias="createDate")
+    create_date: datetime = Field(..., alias="createDate")
     ship_date: str = Field(..., alias="shipDate")
     shipment_cost: float = Field(..., alias="shipmentCost")
     insurance_cost: float = Field(..., alias="insuranceCost")
