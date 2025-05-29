@@ -1,6 +1,9 @@
 Changelog
 =========
 
+- :release:`0.4.0 <29th May 2025>`
+- :feature:`-` Fix various data types
+
 - :release:`0.3.0 <28th May 2025>`
 - :feature:`-` Add support for fetching orders
 

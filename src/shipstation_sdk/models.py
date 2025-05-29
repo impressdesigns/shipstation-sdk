@@ -1,8 +1,12 @@
 """ShipStation API models."""
 
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+# https://www.shipstation.com/docs/api/requirements/#datetime-format-and-time-zone
+LA_TIMEZONE = ZoneInfo("America/Los_Angeles")
 
 
 class Address(BaseModel):
@@ -156,17 +160,17 @@ class Order(BaseModel):
     order_id: int = Field(..., alias="orderId")
     order_number: str = Field(..., alias="orderNumber")
     order_key: str = Field(..., alias="orderKey")
-    order_date: str = Field(..., alias="orderDate")
-    create_date: str = Field(..., alias="createDate")
-    modify_date: str = Field(..., alias="modifyDate")
-    payment_date: str | None = Field(..., alias="paymentDate")
-    ship_by_date: str | None = Field(..., alias="shipByDate")
+    order_date: datetime = Field(..., alias="orderDate")
+    create_date: datetime = Field(..., alias="createDate")
+    modify_date: datetime = Field(..., alias="modifyDate")
+    payment_date: datetime | None = Field(..., alias="paymentDate")
+    ship_by_date: datetime | None = Field(..., alias="shipByDate")
     order_status: str | None = Field(..., alias="orderStatus")
     customer_id: int | None = Field(..., alias="customerId")
     customer_username: str | None = Field(..., alias="customerUsername")
     customer_email: str | None = Field(..., alias="customerEmail")
-    bill_to: Address | None = Field(..., alias="billTo")
-    ship_to: Address | None = Field(..., alias="shipTo")
+    bill_to: Address = Field(..., alias="billTo")
+    ship_to: Address = Field(..., alias="shipTo")
     items: list[Item] | None
     order_total: float | None = Field(..., alias="orderTotal")
     amount_paid: float | None = Field(..., alias="amountPaid")
@@ -182,19 +186,27 @@ class Order(BaseModel):
     service_code: str | None = Field(..., alias="serviceCode")
     package_code: str | None = Field(..., alias="packageCode")
     confirmation: str
-    ship_date: str | None = Field(..., alias="shipDate")
+    ship_date: date | None = Field(..., alias="shipDate")
     hold_until_date: date | None = Field(..., alias="holdUntilDate")
     weight: Weight
     dimensions: Dimensions | None
     insurance_options: InsuranceOptions = Field(..., alias="insuranceOptions")
     international_options: InternationalOptions = Field(..., alias="internationalOptions")
     advanced_options: AdvancedOptions = Field(..., alias="advancedOptions")
-    tag_ids: list[str] | None = Field(..., alias="tagIds")
+    tag_ids: list[int] | None = Field(..., alias="tagIds")
     user_id: list[str] | None = Field(..., alias="userId")
     externally_fulfilled: bool = Field(..., alias="externallyFulfilled")
     externally_fulfilled_by: str | None = Field(..., alias="externallyFulfilledBy")
     externally_fulfilled_by_id: int | None = Field(None, alias="externallyFulfilledById")
     externally_fulfilled_by_name: str | None = Field(None, alias="externallyFulfilledByName")
+
+    @field_validator("order_date", "create_date", "modify_date", "payment_date", "ship_by_date", mode="after")
+    @classmethod
+    def add_timezones(cls, value: datetime | None) -> datetime | None:
+        """Add timezone information to datetime fields."""
+        if value:
+            value = value.replace(tzinfo=LA_TIMEZONE)
+        return value
 
 
 class OrdersList(BaseModel):

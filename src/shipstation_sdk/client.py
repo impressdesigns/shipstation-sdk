@@ -65,6 +65,7 @@ class ShipStationClient:
         self,
         create_date_start: date | None = None,
         create_date_end: date | None = None,
+        store_id: int | None = None,
     ) -> OrdersList:
         """Get a list of orders."""
         params = {}
@@ -72,6 +73,8 @@ class ShipStationClient:
             params["createDateStart"] = create_date_start.isoformat()
         if create_date_end:
             params["createDateEnd"] = create_date_end.isoformat()
+        if store_id is not None:
+            params["storeId"] = store_id
         response = self.make_request("GET", "/orders", params=params)
         response.raise_for_status()
         return OrdersList.model_validate(response.json())
