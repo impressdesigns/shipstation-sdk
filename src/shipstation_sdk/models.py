@@ -71,7 +71,7 @@ class Shipment(BaseModel):
     customer_email: str | None = Field(..., alias="customerEmail")
     order_number: str = Field(..., alias="orderNumber")
     create_date: datetime = Field(..., alias="createDate")
-    ship_date: str = Field(..., alias="shipDate")
+    ship_date: date = Field(..., alias="shipDate")
     shipment_cost: float = Field(..., alias="shipmentCost")
     insurance_cost: float = Field(..., alias="insuranceCost")
     tracking_number: str = Field(..., alias="trackingNumber")
@@ -94,6 +94,14 @@ class Shipment(BaseModel):
     shipment_items: None = Field(..., alias="shipmentItems")
     label_data: None = Field(..., alias="labelData")
     form_data: None = Field(..., alias="formData")
+
+    @field_validator("create_date", mode="after")
+    @classmethod
+    def add_timezones(cls, value: datetime) -> datetime:
+        """Add timezone information to datetime fields."""
+        if value:
+            value = value.replace(tzinfo=LA_TIMEZONE)
+        return value
 
 
 class ShipmentsList(BaseModel):

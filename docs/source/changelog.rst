@@ -1,6 +1,10 @@
 Changelog
 =========
 
+- :release:`0.5.0 <18th June 2025>`
+- :feature:`-` Set the timezone on ``shipment.create_date``
+- :feature:`-` Parse ``shipment.ship_date`` as a date
+
 - :release:`0.4.0 <29th May 2025>`
 - :feature:`-` Fix various data types
 
