@@ -97,7 +97,7 @@ class Shipment(BaseModel):
 
     @field_validator("create_date", mode="after")
     @classmethod
-    def add_timezones(cls, value: datetime | None) -> datetime | None:
+    def add_timezones(cls, value: datetime) -> datetime:
         """Add timezone information to datetime fields."""
         if value:
             value = value.replace(tzinfo=LA_TIMEZONE)
