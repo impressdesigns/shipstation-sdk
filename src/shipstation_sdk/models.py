@@ -1,12 +1,31 @@
 """ShipStation API models."""
 
 from datetime import date, datetime
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AfterValidator, BaseModel, Field
+from pydantic.functional_serializers import PlainSerializer
 
 # https://www.shipstation.com/docs/api/requirements/#datetime-format-and-time-zone
 LA_TIMEZONE = ZoneInfo("America/Los_Angeles")
+
+
+def add_timezone(value: datetime | None) -> datetime | None:
+    """Add timezone information to datetime fields."""
+    if value:
+        value = value.replace(tzinfo=LA_TIMEZONE)
+    return value
+
+
+def to_timezoneless_string(value: datetime | None) -> str | None:
+    """Convert datetime to a string without timezone information."""
+    if value:
+        return value.strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond * 10:07d}"
+    return None
+
+
+ShipStationDateTime = Annotated[datetime, AfterValidator(add_timezone), PlainSerializer(to_timezoneless_string)]
 
 
 class Address(BaseModel):
@@ -51,7 +70,7 @@ class InsuranceOptions(BaseModel):
     insured_value: float = Field(..., alias="insuredValue")
 
 
-class AdvancedOptions(BaseModel):
+class ShipmentAdvancedOptions(BaseModel):
     """Model for advanced options."""
 
     bill_to_party: str | None = Field(..., alias="billToParty")
@@ -70,7 +89,7 @@ class Shipment(BaseModel):
     user_id: str = Field(..., alias="userId")
     customer_email: str | None = Field(..., alias="customerEmail")
     order_number: str = Field(..., alias="orderNumber")
-    create_date: datetime = Field(..., alias="createDate")
+    create_date: ShipStationDateTime = Field(..., alias="createDate")
     ship_date: date = Field(..., alias="shipDate")
     shipment_cost: float = Field(..., alias="shipmentCost")
     insurance_cost: float = Field(..., alias="insuranceCost")
@@ -90,18 +109,10 @@ class Shipment(BaseModel):
     weight: Weight
     dimensions: Dimensions | None
     insurance_options: InsuranceOptions = Field(..., alias="insuranceOptions")
-    advanced_options: AdvancedOptions = Field(..., alias="advancedOptions")
+    advanced_options: ShipmentAdvancedOptions = Field(..., alias="advancedOptions")
     shipment_items: None = Field(..., alias="shipmentItems")
     label_data: None = Field(..., alias="labelData")
     form_data: None = Field(..., alias="formData")
-
-    @field_validator("create_date", mode="after")
-    @classmethod
-    def add_timezones(cls, value: datetime) -> datetime:
-        """Add timezone information to datetime fields."""
-        if value:
-            value = value.replace(tzinfo=LA_TIMEZONE)
-        return value
 
 
 class ShipmentsList(BaseModel):
@@ -162,17 +173,39 @@ class InternationalOptions(BaseModel):
     non_delivery: str | None = Field(..., alias="nonDelivery")
 
 
+class OrderAdvancedOptions(BaseModel):
+    """Model for advanced options."""
+
+    warehouse_id: int = Field(..., alias="warehouseId")
+    non_machinable: bool = Field(..., alias="nonMachinable")
+    saturday_delivery: bool = Field(..., alias="saturdayDelivery")
+    contains_alcohol: bool = Field(..., alias="containsAlcohol")
+    merged_or_split: bool = Field(..., alias="mergedOrSplit")
+    merged_ids: list[int] = Field(..., alias="mergedIds")
+    parent_id: int | None = Field(..., alias="parentId")
+    store_id: int = Field(..., alias="storeId")
+    custom_field_1: str | None = Field(..., alias="customField1")
+    custom_field_2: str | None = Field(..., alias="customField2")
+    custom_field_3: str | None = Field(..., alias="customField3")
+    source: str | None = Field(..., alias="source")
+    bill_to_party: str | None = Field(..., alias="billToParty")
+    bill_to_account: str | None = Field(..., alias="billToAccount")
+    bill_to_postal_code: str | None = Field(..., alias="billToPostalCode")
+    bill_to_country_code: str | None = Field(..., alias="billToCountryCode")
+    bill_to_my_other_account: int | None = Field(..., alias="billToMyOtherAccount")
+
+
 class Order(BaseModel):
     """Model for an order."""
 
     order_id: int = Field(..., alias="orderId")
     order_number: str = Field(..., alias="orderNumber")
     order_key: str = Field(..., alias="orderKey")
-    order_date: datetime = Field(..., alias="orderDate")
-    create_date: datetime = Field(..., alias="createDate")
-    modify_date: datetime = Field(..., alias="modifyDate")
-    payment_date: datetime | None = Field(..., alias="paymentDate")
-    ship_by_date: datetime | None = Field(..., alias="shipByDate")
+    order_date: ShipStationDateTime = Field(..., alias="orderDate")
+    create_date: ShipStationDateTime = Field(..., alias="createDate")
+    modify_date: ShipStationDateTime = Field(..., alias="modifyDate")
+    payment_date: ShipStationDateTime | None = Field(..., alias="paymentDate")
+    ship_by_date: ShipStationDateTime | None = Field(..., alias="shipByDate")
     order_status: str | None = Field(..., alias="orderStatus")
     customer_id: int | None = Field(..., alias="customerId")
     customer_username: str | None = Field(..., alias="customerUsername")
@@ -200,21 +233,14 @@ class Order(BaseModel):
     dimensions: Dimensions | None
     insurance_options: InsuranceOptions = Field(..., alias="insuranceOptions")
     international_options: InternationalOptions = Field(..., alias="internationalOptions")
-    advanced_options: AdvancedOptions = Field(..., alias="advancedOptions")
+    advanced_options: OrderAdvancedOptions = Field(..., alias="advancedOptions")
     tag_ids: list[int] | None = Field(..., alias="tagIds")
     user_id: list[str] | None = Field(..., alias="userId")
     externally_fulfilled: bool = Field(..., alias="externallyFulfilled")
     externally_fulfilled_by: str | None = Field(..., alias="externallyFulfilledBy")
     externally_fulfilled_by_id: int | None = Field(None, alias="externallyFulfilledById")
     externally_fulfilled_by_name: str | None = Field(None, alias="externallyFulfilledByName")
-
-    @field_validator("order_date", "create_date", "modify_date", "payment_date", "ship_by_date", mode="after")
-    @classmethod
-    def add_timezones(cls, value: datetime | None) -> datetime | None:
-        """Add timezone information to datetime fields."""
-        if value:
-            value = value.replace(tzinfo=LA_TIMEZONE)
-        return value
+    label_messages: list[str] | None = Field(..., alias="labelMessages")
 
 
 class OrdersList(BaseModel):
