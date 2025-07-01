@@ -1,6 +1,9 @@
 Changelog
 =========
 
+- :release:`0.6.0 <1st July 2025>`
+- :feature:`-` Fixup order to type to match current API response
+
 - :release:`0.5.0 <18th June 2025>`
 - :feature:`-` Set the timezone on ``shipment.create_date``
 - :feature:`-` Parse ``shipment.ship_date`` as a date

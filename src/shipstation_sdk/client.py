@@ -74,7 +74,7 @@ class ShipStationClient:
         if create_date_end:
             params["createDateEnd"] = create_date_end.isoformat()
         if store_id is not None:
-            params["storeId"] = store_id
+            params["storeId"] = str(store_id)
         response = self.make_request("GET", "/orders", params=params)
         response.raise_for_status()
         return OrdersList.model_validate(response.json())
