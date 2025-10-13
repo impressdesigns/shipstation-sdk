@@ -1,6 +1,10 @@
 Changelog
 =========
 
+- :release:`0.7.0 <13th October 2025>`
+- :feature:`-` Add support all query parameters
+- :feature:`-` Add support for fetching a specific order
+
 - :release:`0.6.0 <1st July 2025>`
 - :feature:`-` Fixup order to type to match current API response
 
