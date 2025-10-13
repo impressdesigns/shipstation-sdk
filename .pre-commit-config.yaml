@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
     hooks:
       - id: check-case-conflict
       - id: check-merge-conflict
@@ -15,6 +15,6 @@ repos:
         exclude: .devcontainer/devcontainer-lock.json
 
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.7.17
+    rev: d6632f1c18634592911b536d5a171f6509b5f3c9  # frozen: 0.9.2
     hooks:
       - id: uv-lock
