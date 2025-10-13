@@ -1,6 +1,6 @@
 [project]
 name = "idi-shipstation-sdk"
-version = "0.6.0"
+version = "0.7.0"
 description = "ShipStation API SDK"
 authors = [
     { name = "Bradley Reynolds", email = "bradley.reynolds@impressdesigns.com" },
