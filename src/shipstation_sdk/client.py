@@ -5,7 +5,7 @@ from typing import Any
 
 from httpx import Client, Response
 
-from .models import OrdersList, ShipmentsList
+from .models import Order, OrdersList, ShipmentsList
 from .parameters import OrderListParameters
 
 
@@ -68,3 +68,9 @@ class ShipStationClient:
         response = self.make_request("GET", "/orders", params=params)
         response.raise_for_status()
         return OrdersList.model_validate(response.json())
+
+    def get_order(self, order_id: int) -> Order:
+        """Get a specific order."""
+        response = self.make_request("GET", f"/orders/{order_id}")
+        response.raise_for_status()
+        return Order.model_validate(response.json())
