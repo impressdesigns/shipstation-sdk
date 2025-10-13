@@ -6,6 +6,7 @@ from typing import Any
 from httpx import Client, Response
 
 from .models import OrdersList, ShipmentsList
+from .parameters import OrderListParameters
 
 
 class ShipStationClient:
@@ -61,20 +62,9 @@ class ShipStationClient:
         response.raise_for_status()
         return ShipmentsList.model_validate(response.json())
 
-    def get_orders(
-        self,
-        create_date_start: date | None = None,
-        create_date_end: date | None = None,
-        store_id: int | None = None,
-    ) -> OrdersList:
+    def get_orders(self, parameters: OrderListParameters | None = None) -> OrdersList:
         """Get a list of orders."""
-        params = {}
-        if create_date_start:
-            params["createDateStart"] = create_date_start.isoformat()
-        if create_date_end:
-            params["createDateEnd"] = create_date_end.isoformat()
-        if store_id is not None:
-            params["storeId"] = str(store_id)
+        params = parameters.model_dump(mode="json", exclude_none=True, by_alias=True) if parameters else {}
         response = self.make_request("GET", "/orders", params=params)
         response.raise_for_status()
         return OrdersList.model_validate(response.json())
