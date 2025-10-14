@@ -1,6 +1,9 @@
 Changelog
 =========
 
+- :release:`0.7.1 <14th October 2025>`
+- :bug:`-` Item SKU is nullable
+
 - :release:`0.7.0 <13th October 2025>`
 - :feature:`-` Add support for all query parameters
 - :feature:`-` Add support for fetching a specific order
