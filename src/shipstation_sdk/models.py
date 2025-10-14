@@ -136,7 +136,7 @@ class Item(BaseModel):
 
     order_item_id: int = Field(..., alias="orderItemId")
     line_item_key: str | None = Field(..., alias="lineItemKey")
-    sku: str
+    sku: str | None
     name: str
     image_url: str | None = Field(..., alias="imageUrl")
     weight: Weight | None
