@@ -127,7 +127,7 @@ class ShipmentsList(BaseModel):
 class Option(BaseModel):
     """Model for an order item option."""
 
-    name: str
+    name: str | None
     value: str
 
 
@@ -235,7 +235,7 @@ class Order(BaseModel):
     international_options: InternationalOptions = Field(..., alias="internationalOptions")
     advanced_options: OrderAdvancedOptions = Field(..., alias="advancedOptions")
     tag_ids: list[int] | None = Field(..., alias="tagIds")
-    user_id: list[str] | None = Field(..., alias="userId")
+    user_id: str | None = Field(..., alias="userId")
     externally_fulfilled: bool = Field(..., alias="externallyFulfilled")
     externally_fulfilled_by: str | None = Field(..., alias="externallyFulfilledBy")
     externally_fulfilled_by_id: int | None = Field(None, alias="externallyFulfilledById")

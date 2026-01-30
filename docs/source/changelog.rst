@@ -1,6 +1,10 @@
 Changelog
 =========
 
+- :release:`0.8.0 <30th January 2026>`
+- :bug:`-` Item option name is nullable
+- :bug:`-` Order user ID is a string
+
 - :release:`0.7.1 <14th October 2025>`
 - :bug:`-` Item SKU is nullable
 
