@@ -1,9 +1,9 @@
 """Tests for the ShipStation API v2 models."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
-from shipstation_sdk.models import Shipment, ShipmentsList
+from shipstation_sdk.models import CarriersList, Shipment, ShipmentsList, Weight
 
 # A realistic v2 shipment, hand-built from the published OpenAPI schema.
 SHIPMENT_JSON: dict[str, Any] = {
@@ -112,3 +112,29 @@ def test_shipment_parses_with_minimal_fields() -> None:
     assert shipment.items == []
     assert shipment.tags == []
     assert shipment.store_id is None
+
+
+def test_weight_accepts_both_unit_spellings() -> None:
+    """The schema says ``unit`` but documented examples say ``units`` — both parse."""
+    assert Weight.model_validate({"value": 9.6, "unit": "ounce"}).unit == "ounce"
+    assert Weight.model_validate({"value": 9.6, "units": "ounce"}).unit == "ounce"
+
+
+def test_ship_date_accepts_a_full_timestamp() -> None:
+    """Documented examples carry timestamps for ``ship_date``; they truncate to the date."""
+    shipment = Shipment.model_validate({"shipment_id": "se-1", "ship_date": "2024-07-25T05:00:00.000Z"})
+
+    assert shipment.ship_date == date(2024, 7, 25)
+
+
+def test_carriers_list_retains_partial_success_errors() -> None:
+    """A 207 partial-success body keeps its ``errors`` alongside the carriers."""
+    carriers_list = CarriersList.model_validate(
+        {
+            "carriers": [{"carrier_id": "se-1", "carrier_code": "ups"}],
+            "errors": [{"error": "connection to stamps_com failed"}],
+        },
+    )
+
+    assert [carrier.carrier_code for carrier in carriers_list.carriers] == ["ups"]
+    assert carriers_list.errors == [{"error": "connection to stamps_com failed"}]

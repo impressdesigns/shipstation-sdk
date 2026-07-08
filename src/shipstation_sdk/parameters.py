@@ -29,6 +29,7 @@ class ShipmentListParameters(BaseModel, strict=True):
     shipment_status: ShipmentStatus | None = None
     store_id: str | None = None
     batch_id: str | None = None
+    tag: str | None = None
     sales_order_id: str | None = None
     shipment_number: str | None = None
     external_shipment_id: str | None = None

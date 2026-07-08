@@ -171,6 +171,28 @@ def test_get_shipment_by_external_id_fetches_by_external_id(monkeypatch: pytest.
     assert recorder.calls[0]["url"] == "/v2/shipments/external_shipment_id/my-order-123"
 
 
+def test_get_shipment_by_external_id_escapes_url_metacharacters(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Caller-defined external IDs (e.g. marketplace ``gid://...``) are path-escaped."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_response(200, MINIMAL_SHIPMENT)])
+
+    client.get_shipment_by_external_id("gid://shopify/Order/1?x=1#frag")
+
+    assert recorder.calls[0]["url"] == (
+        "/v2/shipments/external_shipment_id/gid%3A%2F%2Fshopify%2FOrder%2F1%3Fx%3D1%23frag"
+    )
+
+
+def test_list_shipments_serializes_the_tag_filter(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ``tag`` filter (documented in the list-shipments guide) reaches the query params."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_shipments_page(1, 1, [MINIMAL_SHIPMENT])])
+
+    client.list_shipments(ShipmentListParameters(tag="Rush"))
+
+    assert recorder.calls[0]["params"] == {"tag": "Rush"}
+
+
 def test_make_request_passes_json_bodies_through(monkeypatch: pytest.MonkeyPatch) -> None:
     """The generic escape hatch passes JSON bodies through untouched."""
     client = ShipStationClient(api_key="test-key")

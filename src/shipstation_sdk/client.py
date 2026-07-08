@@ -4,6 +4,7 @@ import time
 from collections.abc import Iterator
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote
 
 import niquests
 
@@ -113,8 +114,14 @@ class ShipStationClient:
         return Shipment.model_validate(response.json())
 
     def get_shipment_by_external_id(self, external_shipment_id: str) -> Shipment:
-        """Get a specific shipment by the external shipment ID it was created with."""
-        response = self.make_request("GET", f"/v2/shipments/external_shipment_id/{external_shipment_id}")
+        """Get a specific shipment by the external shipment ID it was created with.
+
+        External shipment IDs are caller-defined and may contain URL metacharacters
+        (e.g. marketplace IDs like ``gid://...``), so the path segment is escaped.
+        """
+        response = self.make_request(
+            "GET", f"/v2/shipments/external_shipment_id/{quote(external_shipment_id, safe='')}",
+        )
         response.raise_for_status()
         return Shipment.model_validate(response.json())
 

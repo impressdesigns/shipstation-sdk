@@ -1,9 +1,24 @@
 """ShipStation API v2 models."""
 
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel
+from pydantic import AliasChoices, BaseModel, BeforeValidator, Field
+
+
+def _date_from_timestamp(value: object) -> object:
+    """Accept full ISO timestamps for date fields, truncating to the calendar date.
+
+    ShipStation's schema declares plain dates, but documented response examples carry
+    full timestamps (e.g. ``2024-07-25T05:00:00.000Z``), which pydantic would reject
+    for a ``date`` field.
+    """
+    if isinstance(value, str) and "T" in value:
+        return datetime.fromisoformat(value).date()
+    return value
+
+
+ShipStationDate = Annotated[date, BeforeValidator(_date_from_timestamp)]
 
 
 class MonetaryValue(BaseModel):
@@ -17,7 +32,8 @@ class Weight(BaseModel):
     """Model for a weight."""
 
     value: float
-    unit: str
+    # The schema says ``unit`` but documented response examples say ``units``.
+    unit: str = Field(validation_alias=AliasChoices("unit", "units"))
 
 
 class Tag(BaseModel):
@@ -101,7 +117,7 @@ class Shipment(BaseModel):
     shipment_status: str | None = None
     created_at: datetime | None = None
     modified_at: datetime | None = None
-    ship_date: date | None = None
+    ship_date: ShipStationDate | None = None
     ship_by_date: datetime | None = None
     hold_until_date: datetime | None = None
     deliver_by_date: datetime | None = None
@@ -175,9 +191,14 @@ class Carrier(BaseModel):
 
 
 class CarriersList(BaseModel):
-    """Response model for the carriers list API."""
+    """Response model for the carriers list API.
+
+    The endpoint documents a 207 partial-success response; ``errors`` carries the
+    details of any carrier accounts that could not be returned.
+    """
 
     carriers: list[Carrier]
+    errors: list[dict[str, Any]] = []
 
 
 class TagsList(BaseModel):
