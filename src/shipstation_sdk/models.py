@@ -1,252 +1,207 @@
-"""ShipStation API models."""
+"""ShipStation API v2 models."""
 
 from datetime import date, datetime
-from typing import Annotated
-from zoneinfo import ZoneInfo
+from typing import Annotated, Any
 
-from pydantic import AfterValidator, BaseModel, Field
-from pydantic.functional_serializers import PlainSerializer
-
-# https://www.shipstation.com/docs/api/requirements/#datetime-format-and-time-zone
-LA_TIMEZONE = ZoneInfo("America/Los_Angeles")
+from pydantic import AliasChoices, BaseModel, BeforeValidator, Field
 
 
-def add_timezone(value: datetime | None) -> datetime | None:
-    """Add timezone information to datetime fields."""
-    if value:
-        value = value.replace(tzinfo=LA_TIMEZONE)
+def _date_from_timestamp(value: object) -> object:
+    """Accept full ISO timestamps for date fields, truncating to the calendar date.
+
+    ShipStation's schema declares plain dates, but documented response examples carry
+    full timestamps (e.g. ``2024-07-25T05:00:00.000Z``), which pydantic would reject
+    for a ``date`` field.
+    """
+    if isinstance(value, str) and "T" in value:
+        return datetime.fromisoformat(value).date()
     return value
 
 
-def to_timezoneless_string(value: datetime | None) -> str | None:
-    """Convert datetime to a string without timezone information."""
-    if value:
-        return value.strftime("%Y-%m-%dT%H:%M:%S.") + f"{value.microsecond * 10:07d}"
-    return None
+ShipStationDate = Annotated[date, BeforeValidator(_date_from_timestamp)]
 
 
-ShipStationDateTime = Annotated[datetime, AfterValidator(add_timezone), PlainSerializer(to_timezoneless_string)]
+class MonetaryValue(BaseModel):
+    """Model for a monetary amount and its currency."""
 
-
-class Address(BaseModel):
-    """Model for an address."""
-
-    name: str | None
-    company: str | None
-    street1: str | None
-    street2: str | None
-    street3: str | None
-    city: str | None
-    state: str | None
-    postal_code: str | None = Field(..., alias="postalCode")
-    country: str | None
-    phone: str | None
-    residential: bool | None
-    address_verified: str | None = Field(..., alias="addressVerified")
+    currency: str
+    amount: float
 
 
 class Weight(BaseModel):
-    """Model for the weight of the shipment."""
+    """Model for a weight."""
 
     value: float
-    units: str
-    weight_units: int = Field(..., alias="WeightUnits")
+    # The schema says ``unit`` but documented response examples say ``units``.
+    unit: str = Field(validation_alias=AliasChoices("unit", "units"))
 
 
-class Dimensions(BaseModel):
-    """Model for the dimensions of the shipment."""
+class Tag(BaseModel):
+    """Model for a shipment tag."""
 
-    units: str
-    length: float
-    width: float
-    height: float
+    name: str
 
 
-class InsuranceOptions(BaseModel):
-    """Model for insurance options."""
+class ItemOption(BaseModel):
+    """Model for a shipment item option."""
 
-    provider: str | None
-    insure_shipment: bool = Field(..., alias="insureShipment")
-    insured_value: float = Field(..., alias="insuredValue")
+    name: str | None = None
+    value: str | None = None
 
 
-class ShipmentAdvancedOptions(BaseModel):
-    """Model for advanced options."""
+class Address(BaseModel):
+    """Model for a shipping address."""
 
-    bill_to_party: str | None = Field(..., alias="billToParty")
-    bill_to_account: str | None = Field(..., alias="billToAccount")
-    bill_to_postal_code: str | None = Field(..., alias="billToPostalCode")
-    bill_to_country_code: str | None = Field(..., alias="billToCountryCode")
-    store_id: int = Field(..., alias="storeId")
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    company_name: str | None = None
+    address_line1: str | None = None
+    address_line2: str | None = None
+    address_line3: str | None = None
+    city_locality: str | None = None
+    state_province: str | None = None
+    postal_code: str | None = None
+    country_code: str | None = None
+    address_residential_indicator: str | None = None
+    instructions: str | None = None
+
+
+class ShipmentItem(BaseModel):
+    """Model for a shipment item (an order line)."""
+
+    name: str | None = None
+    sku: str | None = None
+    bundle_sku: str | None = None
+    upc: str | None = None
+    asin: str | None = None
+    quantity: int = 0
+    unit_price: float | None = None
+    tax_amount: float | None = None
+    shipping_amount: float | None = None
+    weight: Weight | None = None
+    sales_order_id: str | None = None
+    sales_order_item_id: str | None = None
+    external_order_id: str | None = None
+    external_order_item_id: str | None = None
+    item_id: str | None = None
+    product_id: str | None = None
+    # The double-l spelling is the ShipStation API's, not ours.
+    fullfilment_sku: str | None = None
+    allocation_status: str | None = None
+    inventory_location: str | None = None
+    image_url: str | None = None
+    order_source_code: str | None = None
+    options: list[ItemOption] = []
+
+
+class AdvancedShipmentOptions(BaseModel):
+    """Model for advanced shipment options."""
+
+    custom_field1: str | None = None
+    custom_field2: str | None = None
+    custom_field3: str | None = None
+    bill_to_party: str | None = None
+    bill_to_account: str | None = None
+    bill_to_postal_code: str | None = None
+    bill_to_country_code: str | None = None
 
 
 class Shipment(BaseModel):
-    """Model for a shipment."""
+    """Model for a shipment (the v2 equivalent of a v1 order)."""
 
-    shipment_id: int = Field(..., alias="shipmentId")
-    order_id: int = Field(..., alias="orderId")
-    order_key: str = Field(..., alias="orderKey")
-    user_id: str = Field(..., alias="userId")
-    customer_email: str | None = Field(..., alias="customerEmail")
-    order_number: str = Field(..., alias="orderNumber")
-    create_date: ShipStationDateTime = Field(..., alias="createDate")
-    ship_date: date = Field(..., alias="shipDate")
-    shipment_cost: float = Field(..., alias="shipmentCost")
-    insurance_cost: float = Field(..., alias="insuranceCost")
-    tracking_number: str = Field(..., alias="trackingNumber")
-    is_return_label: bool = Field(..., alias="isReturnLabel")
-    batch_number: int | None = Field(..., alias="batchNumber")
-    carrier_code: str = Field(..., alias="carrierCode")
-    service_code: str = Field(..., alias="serviceCode")
-    package_code: str | None = Field(..., alias="packageCode")
-    confirmation: bool | None
-    warehouse_id: int = Field(..., alias="warehouseId")
-    voided: bool
-    void_date: str | None = Field(..., alias="voidDate")
-    marketplace_notified: bool = Field(..., alias="marketplaceNotified")
-    notify_error_message: str | None = Field(..., alias="notifyErrorMessage")
-    ship_to: Address = Field(..., alias="shipTo")
-    weight: Weight
-    dimensions: Dimensions | None
-    insurance_options: InsuranceOptions = Field(..., alias="insuranceOptions")
-    advanced_options: ShipmentAdvancedOptions = Field(..., alias="advancedOptions")
-    shipment_items: None = Field(..., alias="shipmentItems")
-    label_data: None = Field(..., alias="labelData")
-    form_data: None = Field(..., alias="formData")
+    shipment_id: str
+    external_shipment_id: str | None = None
+    shipment_number: str | None = None
+    external_order_id: str | None = None
+    shipment_status: str | None = None
+    created_at: datetime | None = None
+    modified_at: datetime | None = None
+    ship_date: ShipStationDate | None = None
+    ship_by_date: datetime | None = None
+    hold_until_date: datetime | None = None
+    deliver_by_date: datetime | None = None
+    store_id: str | None = None
+    order_source_code: str | None = None
+    carrier_id: str | None = None
+    service_code: str | None = None
+    requested_shipment_service: str | None = None
+    comparison_rate_type: str | None = None
+    zone: int | None = None
+    warehouse_id: str | None = None
+    amount_paid: MonetaryValue | None = None
+    shipping_paid: MonetaryValue | None = None
+    tax_paid: MonetaryValue | None = None
+    retail_rate: MonetaryValue | None = None
+    ship_to: Address | None = None
+    ship_from: Address | None = None
+    return_to: Address | None = None
+    items: list[ShipmentItem] = []
+    tags: list[Tag] = []
+    packages: list[dict[str, Any]] = []
+    total_weight: Weight | None = None
+    notes_from_buyer: str | None = None
+    notes_to_buyer: str | None = None
+    notes_for_gift: str | None = None
+    internal_notes: str | None = None
+    is_gift: bool | None = None
+    is_return: bool | None = None
+    assigned_user: str | None = None
+    display_scheme: str | None = None
+    confirmation: str | None = None
+    insurance_provider: str | None = None
+    advanced_options: AdvancedShipmentOptions | None = None
+    customs: dict[str, Any] | None = None
+    tax_identifiers: list[dict[str, Any]] | None = None
+
+
+class PaginationLink(BaseModel):
+    """Model for a single pagination link."""
+
+    href: str | None = None
+
+
+class PaginationLinks(BaseModel):
+    """Model for the pagination links of a list response."""
+
+    first: PaginationLink | None = None
+    last: PaginationLink | None = None
+    prev: PaginationLink | None = None
+    next: PaginationLink | None = None
 
 
 class ShipmentsList(BaseModel):
-    """Response model for Shipments API."""
+    """Response model for the shipments list API."""
 
     shipments: list[Shipment]
     total: int
     page: int
     pages: int
+    links: PaginationLinks | None = None
 
 
-class Option(BaseModel):
-    """Model for an order item option."""
+class Carrier(BaseModel):
+    """Model for a connected carrier account."""
 
-    name: str | None
-    value: str
-
-
-class Item(BaseModel):
-    """Model for an order item."""
-
-    order_item_id: int = Field(..., alias="orderItemId")
-    line_item_key: str | None = Field(..., alias="lineItemKey")
-    sku: str | None
-    name: str
-    image_url: str | None = Field(..., alias="imageUrl")
-    weight: Weight | None
-    quantity: int
-    unit_price: float = Field(..., alias="unitPrice")
-    tax_amount: float | None = Field(..., alias="taxAmount")
-    shipping_amount: float | None = Field(..., alias="shippingAmount")
-    warehouse_location: str | None = Field(..., alias="warehouseLocation")
-    options: list[Option]
-    product_id: int | None = Field(..., alias="productId")
-    fulfillment_sku: str | None = Field(..., alias="fulfillmentSku")
-    adjustment: bool
-    upc: str | None
-    create_date: str = Field(..., alias="createDate")
-    modify_date: str = Field(..., alias="modifyDate")
+    carrier_id: str
+    carrier_code: str
+    friendly_name: str | None = None
+    nickname: str | None = None
+    account_number: str | None = None
 
 
-class CustomsItem(BaseModel):
-    """Model for customs item."""
+class CarriersList(BaseModel):
+    """Response model for the carriers list API.
 
-    customs_item_id: int = Field(..., alias="customsItemId")
-    description: str
-    quantity: int
-    value: float
-    harmonized_tariff_code: str | None = Field(..., alias="harmonizedTariffCode")
-    country_of_origin: str = Field(..., alias="countryOfOrigin")
+    The endpoint documents a 207 partial-success response; ``errors`` carries the
+    details of any carrier accounts that could not be returned.
+    """
 
-
-class InternationalOptions(BaseModel):
-    """Model for international shipping options."""
-
-    contents: str | None
-    customs_items: list[CustomsItem] | None = Field(..., alias="customsItems")
-    non_delivery: str | None = Field(..., alias="nonDelivery")
+    carriers: list[Carrier]
+    errors: list[dict[str, Any]] = []
 
 
-class OrderAdvancedOptions(BaseModel):
-    """Model for advanced options."""
+class TagsList(BaseModel):
+    """Response model for the tags list API."""
 
-    warehouse_id: int = Field(..., alias="warehouseId")
-    non_machinable: bool = Field(..., alias="nonMachinable")
-    saturday_delivery: bool = Field(..., alias="saturdayDelivery")
-    contains_alcohol: bool = Field(..., alias="containsAlcohol")
-    merged_or_split: bool = Field(..., alias="mergedOrSplit")
-    merged_ids: list[int] = Field(..., alias="mergedIds")
-    parent_id: int | None = Field(..., alias="parentId")
-    store_id: int = Field(..., alias="storeId")
-    custom_field_1: str | None = Field(..., alias="customField1")
-    custom_field_2: str | None = Field(..., alias="customField2")
-    custom_field_3: str | None = Field(..., alias="customField3")
-    source: str | None = Field(..., alias="source")
-    bill_to_party: str | None = Field(..., alias="billToParty")
-    bill_to_account: str | None = Field(..., alias="billToAccount")
-    bill_to_postal_code: str | None = Field(..., alias="billToPostalCode")
-    bill_to_country_code: str | None = Field(..., alias="billToCountryCode")
-    bill_to_my_other_account: int | None = Field(..., alias="billToMyOtherAccount")
-
-
-class Order(BaseModel):
-    """Model for an order."""
-
-    order_id: int = Field(..., alias="orderId")
-    order_number: str = Field(..., alias="orderNumber")
-    order_key: str = Field(..., alias="orderKey")
-    order_date: ShipStationDateTime = Field(..., alias="orderDate")
-    create_date: ShipStationDateTime = Field(..., alias="createDate")
-    modify_date: ShipStationDateTime = Field(..., alias="modifyDate")
-    payment_date: ShipStationDateTime | None = Field(..., alias="paymentDate")
-    ship_by_date: ShipStationDateTime | None = Field(..., alias="shipByDate")
-    order_status: str | None = Field(..., alias="orderStatus")
-    customer_id: int | None = Field(..., alias="customerId")
-    customer_username: str | None = Field(..., alias="customerUsername")
-    customer_email: str | None = Field(..., alias="customerEmail")
-    bill_to: Address = Field(..., alias="billTo")
-    ship_to: Address = Field(..., alias="shipTo")
-    items: list[Item] | None
-    order_total: float | None = Field(..., alias="orderTotal")
-    amount_paid: float | None = Field(..., alias="amountPaid")
-    tax_amount: float | None = Field(..., alias="taxAmount")
-    shipping_amount: float | None = Field(..., alias="shippingAmount")
-    customer_notes: str | None = Field(..., alias="customerNotes")
-    internal_notes: str | None = Field(..., alias="internalNotes")
-    gift: bool
-    gift_message: str | None = Field(..., alias="giftMessage")
-    payment_method: str | None = Field(..., alias="paymentMethod")
-    requested_shipping_service: str | None = Field(..., alias="requestedShippingService")
-    carrier_code: str | None = Field(..., alias="carrierCode")
-    service_code: str | None = Field(..., alias="serviceCode")
-    package_code: str | None = Field(..., alias="packageCode")
-    confirmation: str
-    ship_date: date | None = Field(..., alias="shipDate")
-    hold_until_date: date | None = Field(..., alias="holdUntilDate")
-    weight: Weight
-    dimensions: Dimensions | None
-    insurance_options: InsuranceOptions = Field(..., alias="insuranceOptions")
-    international_options: InternationalOptions = Field(..., alias="internationalOptions")
-    advanced_options: OrderAdvancedOptions = Field(..., alias="advancedOptions")
-    tag_ids: list[int] | None = Field(..., alias="tagIds")
-    user_id: str | None = Field(..., alias="userId")
-    externally_fulfilled: bool = Field(..., alias="externallyFulfilled")
-    externally_fulfilled_by: str | None = Field(..., alias="externallyFulfilledBy")
-    externally_fulfilled_by_id: int | None = Field(None, alias="externallyFulfilledById")
-    externally_fulfilled_by_name: str | None = Field(None, alias="externallyFulfilledByName")
-    label_messages: list[str] | None = Field(..., alias="labelMessages")
-
-
-class OrdersList(BaseModel):
-    """Model for a list of orders."""
-
-    orders: list[Order]
-    total: int
-    page: int
-    pages: int
+    tags: list[Tag]

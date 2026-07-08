@@ -1,49 +1,47 @@
 """Parameters for ShipStation API requests."""
 
-from datetime import date
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-type OrderStatus = Literal[
-    "awaiting_payment",
-    "awaiting_shipment",
-    "pending_fulfillment",
-    "shipped",
-    "on_hold",
+type ShipmentStatus = Literal[
+    "pending",
+    "processing",
+    "label_purchased",
     "cancelled",
-    "rejected_fulfillment",
 ]
 
-type OrderSortKey = Literal[
-    "OrderDate",
-    "ModifyDate",
-    "CreateDate",
+type ShipmentSortKey = Literal[
+    "modified_at",
+    "created_at",
 ]
 
 type SortDirection = Literal[
-    "ASC",
-    "DESC",
+    "asc",
+    "desc",
 ]
 
 
-class OrderListParameters(BaseModel, strict=True):
-    """Parameters for listing orders."""
+class ShipmentListParameters(BaseModel, strict=True):
+    """Parameters for listing shipments."""
 
-    customer_name: str | None = Field(None, alias="customerName")
-    item_keyword: str | None = Field(None, alias="itemKeyword")
-    create_date_start: date | None = Field(None, alias="createDateStart")
-    create_date_end: date | None = Field(None, alias="createDateEnd")
-    modify_date_start: date | None = Field(None, alias="modifyDateStart")
-    modify_date_end: date | None = Field(None, alias="modifyDateEnd")
-    order_date_start: date | None = Field(None, alias="orderDateStart")
-    order_date_end: date | None = Field(None, alias="orderDateEnd")
-    order_number: str | None = Field(None, alias="orderNumber")
-    order_status: OrderStatus | None = Field(None, alias="orderStatus")
-    payment_date_start: date | None = Field(None, alias="paymentDateStart")
-    payment_date_end: date | None = Field(None, alias="paymentDateEnd")
-    store_id: int | None = Field(None, alias="storeId")
-    sort_by: OrderSortKey | None = Field(None, alias="sortBy")
-    sort_dir: SortDirection | None = Field(None, alias="sortDir")
-    page: int | None = Field(None, alias="page")
-    page_size: int | None = Field(None, ge=1, le=500, alias="pageSize")
+    shipment_status: ShipmentStatus | None = None
+    store_id: str | None = None
+    batch_id: str | None = None
+    tag: str | None = None
+    sales_order_id: str | None = None
+    shipment_number: str | None = None
+    external_shipment_id: str | None = None
+    item_keyword: str | None = None
+    ship_to_name: str | None = None
+    created_at_start: datetime | None = None
+    created_at_end: datetime | None = None
+    modified_at_start: datetime | None = None
+    modified_at_end: datetime | None = None
+    payment_date_start: datetime | None = None
+    payment_date_end: datetime | None = None
+    sort_by: ShipmentSortKey | None = None
+    sort_dir: SortDirection | None = None
+    page: int | None = Field(None, ge=1)
+    page_size: int | None = Field(None, ge=1)
