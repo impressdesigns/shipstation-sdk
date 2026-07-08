@@ -1,6 +1,8 @@
 """Tests for the ShipStation API v2 client."""
 
 import json
+from datetime import UTC, datetime, timedelta
+from email.utils import format_datetime
 from http import HTTPStatus
 from typing import Any
 
@@ -202,3 +204,27 @@ def test_make_request_passes_json_bodies_through(monkeypatch: pytest.MonkeyPatch
 
     assert response.status_code == HTTPStatus.OK
     assert recorder.calls[0]["json"] == {"example": True}
+
+
+def test_retry_after_accepts_an_http_date() -> None:
+    """RFC 9110 allows an HTTP-date ``Retry-After``; it converts to a bounded delay."""
+    future = format_datetime(datetime.now(tz=UTC) + timedelta(seconds=30), usegmt=True)
+    past = format_datetime(datetime.now(tz=UTC) - timedelta(seconds=30), usegmt=True)
+
+    future_delay = _retry_after_seconds(_response(429, headers={"Retry-After": future}))
+    past_delay = _retry_after_seconds(_response(429, headers={"Retry-After": past}))
+
+    assert 20.0 < future_delay <= 30.0
+    assert past_delay == 0.0
+
+
+def test_list_tags_fetches_the_account_tags(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``list_tags`` GETs the tags path and validates the envelope."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_response(200, {"tags": [{"name": "Rush"}]})])
+
+    tags_list = client.list_tags()
+
+    assert recorder.calls[0]["method"] == "GET"
+    assert recorder.calls[0]["url"] == "/v2/tags"
+    assert [tag.name for tag in tags_list.tags] == ["Rush"]

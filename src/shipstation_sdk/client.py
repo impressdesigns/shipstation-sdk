@@ -2,6 +2,8 @@
 
 import time
 from collections.abc import Iterator
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote
@@ -22,13 +24,19 @@ def _retry_after_seconds(response: niquests.Response) -> float:
     Parameters
     ----------
     response
-        The 429 response, whose ``Retry-After`` header (in seconds) is honored
-        when present, capped at ``MAX_RETRY_AFTER_SECONDS``.
+        The 429 response, whose ``Retry-After`` header is honored in either RFC 9110
+        form -- delta-seconds or an HTTP-date -- capped at ``MAX_RETRY_AFTER_SECONDS``.
     """
-    try:
-        seconds = float(response.headers["Retry-After"])
-    except (KeyError, ValueError):
+    header = response.headers.get("Retry-After")
+    if header is None:
         return DEFAULT_RETRY_AFTER_SECONDS
+    try:
+        seconds = float(header)
+    except ValueError:
+        try:
+            seconds = (parsedate_to_datetime(header) - datetime.now(tz=UTC)).total_seconds()
+        except (TypeError, ValueError):
+            return DEFAULT_RETRY_AFTER_SECONDS
     return min(max(seconds, 0.0), MAX_RETRY_AFTER_SECONDS)
 
 
