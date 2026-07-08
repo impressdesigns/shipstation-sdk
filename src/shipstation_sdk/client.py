@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from http import HTTPStatus
 from typing import Any
 
-from httpx import BaseTransport, Client, Response
+import niquests
 
 from .models import CarriersList, Shipment, ShipmentsList, TagsList
 from .parameters import ShipmentListParameters
@@ -15,7 +15,7 @@ DEFAULT_RETRY_AFTER_SECONDS = 5.0
 MAX_RETRY_AFTER_SECONDS = 60.0
 
 
-def _retry_after_seconds(response: Response) -> float:
+def _retry_after_seconds(response: niquests.Response) -> float:
     """Determine how long to sleep before retrying a rate-limited request.
 
     Parameters
@@ -39,7 +39,6 @@ class ShipStationClient:
         api_key: str,
         base_url: str = "https://api.shipstation.com",
         timeout: float = 60.0,
-        transport: BaseTransport | None = None,
     ) -> None:
         """Initialize the ShipStationClient class.
 
@@ -51,15 +50,12 @@ class ShipStationClient:
             The API host.
         timeout
             The request timeout in seconds.
-        transport
-            Optional httpx transport override (useful for testing).
         """
-        self.client = Client(
+        self.session = niquests.Session(
             base_url=base_url,
-            headers={"api-key": api_key},
             timeout=timeout,
-            transport=transport,
         )
+        self.session.headers["api-key"] = api_key
 
     def make_request(
         self,
@@ -67,7 +63,7 @@ class ShipStationClient:
         path: str,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
-    ) -> Response:
+    ) -> niquests.Response:
         """Make a request to ShipStation, retrying when rate-limited.
 
         Retries up to ``RETRY_ATTEMPTS`` total attempts on HTTP 429, sleeping the
@@ -84,12 +80,12 @@ class ShipStationClient:
         if json is not None:
             args["json"] = json
 
-        response = self.client.request(**args)
+        response = self.session.request(**args)
         for _attempt in range(RETRY_ATTEMPTS - 1):
             if response.status_code != HTTPStatus.TOO_MANY_REQUESTS:
                 break
             time.sleep(_retry_after_seconds(response))
-            response = self.client.request(**args)
+            response = self.session.request(**args)
         return response
 
     def list_shipments(self, parameters: ShipmentListParameters | None = None) -> ShipmentsList:

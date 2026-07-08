@@ -7,6 +7,7 @@ Changelog
   connected-carrier and tag listing, and rate-limit-aware retries
 - :feature:`-` Remove every v1 (legacy) endpoint and model, including orders and the
   ``America/Los_Angeles`` datetime handling; v1 consumers should pin ``<1``
+- :feature:`-` HTTP via Niquests instead of HTTPX, matching the in-house SDKs
 
 - :release:`0.8.0 <30th January 2026>`
 - :bug:`-` Item option name is nullable
