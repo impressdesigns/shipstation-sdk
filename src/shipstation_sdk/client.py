@@ -120,7 +120,8 @@ class ShipStationClient:
         (e.g. marketplace IDs like ``gid://...``), so the path segment is escaped.
         """
         response = self.make_request(
-            "GET", f"/v2/shipments/external_shipment_id/{quote(external_shipment_id, safe='')}",
+            "GET",
+            f"/v2/shipments/external_shipment_id/{quote(external_shipment_id, safe='')}",
         )
         response.raise_for_status()
         return Shipment.model_validate(response.json())
