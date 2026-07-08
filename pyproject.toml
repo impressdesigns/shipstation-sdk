@@ -1,6 +1,6 @@
 [project]
 name = "idi-shipstation-sdk"
-version = "0.8.0"
+version = "1.0.0"
 description = "ShipStation API SDK"
 authors = [
     { name = "Bradley Reynolds", email = "bradley.reynolds@impressdesigns.com" },
@@ -61,6 +61,7 @@ ignore = [
 ]
 "tests/*" = [
     "S101", # (Use of `assert` detected) - Yes, that's the point
+    "PLR2004", # (Magic value used in comparison) - Tests compare against fixture values
 ]
 
 [tool.ruff.lint.isort]
