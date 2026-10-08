@@ -6,12 +6,26 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from http import HTTPStatus
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlsplit
 
 import niquests
 
-from .models import CarriersList, Shipment, ShipmentsList, TagsList
-from .parameters import ShipmentListParameters
+from .models import (
+    CarriersList,
+    CreateShipmentsResponse,
+    Label,
+    LabelsList,
+    Shipment,
+    ShipmentRequest,
+    ShipmentsList,
+    TagsList,
+    Webhook,
+    WebhookHeader,
+)
+from .parameters import LabelListParameters, ShipmentListParameters
+
+#: The only host a webhook's ``resource_url`` may name: anything else is not ShipStation's.
+API_HOST = "api.shipstation.com"
 
 RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_AFTER_SECONDS = 5.0
@@ -145,3 +159,95 @@ class ShipStationClient:
         response = self.make_request("GET", "/v2/tags")
         response.raise_for_status()
         return TagsList.model_validate(response.json())
+
+    def create_shipments(self, shipments: list[ShipmentRequest]) -> CreateShipmentsResponse:
+        """Create shipments; each comes back with its id, or with the errors that stopped it.
+
+        A shipment ShipStation refuses does not fail the call: check ``has_errors`` and each
+        shipment's ``errors``.
+        """
+        body = {"shipments": [shipment.model_dump(mode="json", exclude_none=True) for shipment in shipments]}
+        response = self.make_request("POST", "/v2/shipments", json=body)
+        response.raise_for_status()
+        return CreateShipmentsResponse.model_validate(response.json())
+
+    def update_shipment(self, shipment_id: str, shipment: ShipmentRequest) -> Shipment:
+        """Update a shipment that has no label yet; fields left ``None`` are left as they are."""
+        response = self.make_request(
+            "PUT",
+            f"/v2/shipments/{shipment_id}",
+            json=shipment.model_dump(mode="json", exclude_none=True),
+        )
+        response.raise_for_status()
+        return Shipment.model_validate(response.json())
+
+    def list_labels(self, parameters: LabelListParameters | None = None) -> LabelsList:
+        """Get a page of labels."""
+        params = parameters.model_dump(mode="json", exclude_none=True) if parameters else {}
+        response = self.make_request("GET", "/v2/labels", params=params)
+        response.raise_for_status()
+        return LabelsList.model_validate(response.json())
+
+    def iter_labels(self, parameters: LabelListParameters | None = None) -> Iterator[Label]:
+        """Iterate over every label matching the parameters, following pagination."""
+        parameters = parameters.model_copy() if parameters else LabelListParameters()
+        parameters.page = parameters.page or 1
+        while True:
+            labels_list = self.list_labels(parameters)
+            yield from labels_list.labels
+            if labels_list.page >= labels_list.pages:
+                return
+            parameters.page = labels_list.page + 1
+
+    def iter_labels_at(self, resource_url: str) -> Iterator[Label]:
+        """Iterate over the labels a ``label_created_v2`` webhook's ``resource_url`` names.
+
+        The URL is ``https://api.shipstation.com/v2/labels?batch_id=...``. Its query becomes
+        list parameters, so the request goes to this client's own host with its own key:
+        a URL naming any other host or path is refused rather than sent the key.
+
+        Raises
+        ------
+        ValueError
+            If the URL is not a labels list on ShipStation's API host.
+        """
+        url = urlsplit(resource_url)
+        if url.scheme != "https" or url.hostname != API_HOST or url.path.rstrip("/") != "/v2/labels":
+            msg = f"Not a ShipStation labels URL: {resource_url!r}"
+            raise ValueError(msg)
+        filters = dict(parse_qsl(url.query))
+        known = set(LabelListParameters.model_fields)
+        parameters = LabelListParameters.model_validate(
+            {key: value for key, value in filters.items() if key in known and key not in {"page", "page_size"}},
+            strict=False,
+        )
+        yield from self.iter_labels(parameters)
+
+    def list_webhooks(self) -> list[Webhook]:
+        """Get the account's webhook subscriptions."""
+        response = self.make_request("GET", "/v2/environment/webhooks")
+        response.raise_for_status()
+        return [Webhook.model_validate(webhook) for webhook in response.json()]
+
+    def create_webhook(
+        self,
+        *,
+        name: str,
+        event: str,
+        url: str,
+        headers: list[WebhookHeader] | None = None,
+        store_id: str | None = None,
+    ) -> Webhook:
+        """Subscribe ``url`` to ``event`` (such as ``label_created_v2``).
+
+        ``headers`` are sent with every call, which is how a listener tells ShipStation's
+        calls from anyone else's.
+        """
+        body: dict[str, Any] = {"name": name, "event": event, "url": url}
+        if headers:
+            body["headers"] = [header.model_dump() for header in headers]
+        if store_id is not None:
+            body["store_id"] = store_id
+        response = self.make_request("POST", "/v2/environment/webhooks", json=body)
+        response.raise_for_status()
+        return Webhook.model_validate(response.json())

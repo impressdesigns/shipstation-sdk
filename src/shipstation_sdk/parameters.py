@@ -45,3 +45,28 @@ class ShipmentListParameters(BaseModel, strict=True):
     sort_dir: SortDirection | None = None
     page: int | None = Field(None, ge=1)
     page_size: int | None = Field(None, ge=1)
+
+
+type LabelStatus = Literal[
+    "processing",
+    "completed",
+    "error",
+    "voided",
+]
+
+
+class LabelListParameters(BaseModel, strict=True):
+    """Parameters for listing labels."""
+
+    label_status: LabelStatus | None = None
+    shipment_id: str | None = None
+    external_shipment_id: str | None = None
+    batch_id: str | None = None
+    tracking_number: str | None = None
+    carrier_id: str | None = None
+    created_at_start: datetime | None = None
+    created_at_end: datetime | None = None
+    sort_by: Literal["modified_at", "created_at", "voided_at"] | None = None
+    sort_dir: SortDirection | None = None
+    page: int | None = Field(None, ge=1)
+    page_size: int | None = Field(None, ge=1)

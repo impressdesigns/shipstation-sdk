@@ -16,6 +16,14 @@ from shipstation_sdk.client import (
     RETRY_ATTEMPTS,
     _retry_after_seconds,
 )
+from shipstation_sdk.models import (
+    Address,
+    Package,
+    ShipmentRequest,
+    ShipmentRequestItem,
+    WebhookHeader,
+    Weight,
+)
 from shipstation_sdk.parameters import ShipmentListParameters
 
 MINIMAL_SHIPMENT: dict[str, Any] = {"shipment_id": "se-28529731", "shipment_status": "pending"}
@@ -228,3 +236,135 @@ def test_list_tags_fetches_the_account_tags(monkeypatch: pytest.MonkeyPatch) -> 
     assert recorder.calls[0]["method"] == "GET"
     assert recorder.calls[0]["url"] == "/v2/tags"
     assert [tag.name for tag in tags_list.tags] == ["Rush"]
+
+
+def _label(label_id: str = "se-1001", **fields: Any) -> dict[str, Any]:  # noqa: ANN401 -- canned JSON
+    """Build a label as ShipStation returns it."""
+    return {
+        "label_id": label_id,
+        "status": "completed",
+        "shipment_id": "se-28529731",
+        "tracking_number": "1Z999",
+        "carrier_id": "se-42",
+        "service_code": "ups_ground",
+        "ship_date": "2026-10-08T00:00:00Z",
+        "shipment_cost": {"currency": "usd", "amount": 9.5},
+        **fields,
+    }
+
+
+def test_create_shipments_posts_the_requests_without_unset_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each request goes up as ShipStation names its fields; unset ones stay off the wire."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(
+        client,
+        monkeypatch,
+        [_response(200, {"has_errors": False, "shipments": [{**MINIMAL_SHIPMENT, "errors": []}]})],
+    )
+
+    created = client.create_shipments(
+        [
+            ShipmentRequest(
+                external_shipment_id="IDI7",
+                warehouse_id="se-1",
+                ship_to=Address(name="Pat", address_line1="1 Elm St"),
+                packages=[Package(weight=Weight(value=1, unit="pound"))],
+                items=[ShipmentRequestItem(name="Tee", quantity=2)],
+            ),
+        ],
+    )
+
+    assert created.shipments[0].shipment_id == "se-28529731"
+    call = recorder.calls[0]
+    assert (call["method"], call["url"]) == ("POST", "/v2/shipments")
+    assert call["json"] == {
+        "shipments": [
+            {
+                "external_shipment_id": "IDI7",
+                "warehouse_id": "se-1",
+                "ship_to": {"name": "Pat", "address_line1": "1 Elm St"},
+                "packages": [{"weight": {"value": 1.0, "unit": "pound"}}],
+                "items": [{"name": "Tee", "quantity": 2}],
+            },
+        ],
+    }
+
+
+def test_update_shipment_puts_only_what_it_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An update sends the fields given and nothing else."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_response(200, MINIMAL_SHIPMENT)])
+
+    client.update_shipment("se-28529731", ShipmentRequest(service_code="fedex_ground"))
+
+    call = recorder.calls[0]
+    assert (call["method"], call["url"], call["json"]) == (
+        "PUT",
+        "/v2/shipments/se-28529731",
+        {"service_code": "fedex_ground"},
+    )
+
+
+def test_iter_labels_at_follows_a_webhook_url_on_this_clients_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ``label_created_v2`` URL's filters become list parameters, paged as usual."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(
+        client,
+        monkeypatch,
+        [
+            _response(200, {"labels": [_label("se-1")], "total": 2, "page": 1, "pages": 2}),
+            _response(200, {"labels": [_label("se-2", voided=True)], "total": 2, "page": 2, "pages": 2}),
+        ],
+    )
+
+    labels = list(client.iter_labels_at("https://api.shipstation.com/v2/labels?batch_id=se-99"))
+
+    assert [label.label_id for label in labels] == ["se-1", "se-2"]
+    assert labels[0].shipment_cost is not None
+    assert labels[0].shipment_cost.amount == 9.5
+    assert [call["url"] for call in recorder.calls] == ["/v2/labels", "/v2/labels"]
+    assert [call["params"] for call in recorder.calls] == [
+        {"batch_id": "se-99", "page": 1},
+        {"batch_id": "se-99", "page": 2},
+    ]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://evil.example/v2/labels?batch_id=se-1",
+        "http://api.shipstation.com/v2/labels?batch_id=se-1",
+        "https://api.shipstation.com/v2/shipments?batch_id=se-1",
+    ],
+)
+def test_iter_labels_at_refuses_any_other_url(url: str) -> None:
+    """The API key never goes anywhere but ShipStation's labels list."""
+    client = ShipStationClient(api_key="test-key")
+
+    with pytest.raises(ValueError, match="Not a ShipStation labels URL"):
+        list(client.iter_labels_at(url))
+
+
+def test_create_webhook_sends_its_headers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The headers ShipStation should send with every call go up with the subscription."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(
+        client,
+        monkeypatch,
+        [_response(200, {"webhook_id": "123", "url": "https://x.test/hook", "event": "label_created_v2"})],
+    )
+
+    webhook = client.create_webhook(
+        name="Core",
+        event="label_created_v2",
+        url="https://x.test/hook",
+        headers=[WebhookHeader(key="x-token", value="secret")],
+    )
+
+    assert webhook.webhook_id == "123"
+    assert recorder.calls[0]["json"] == {
+        "name": "Core",
+        "event": "label_created_v2",
+        "url": "https://x.test/hook",
+        "headers": [{"key": "x-token", "value": "secret"}],
+    }
