@@ -205,3 +205,109 @@ class TagsList(BaseModel):
     """Response model for the tags list API."""
 
     tags: list[Tag]
+
+
+class Package(BaseModel):
+    """Model for one package on a shipment request: ShipStation needs at least one."""
+
+    weight: Weight
+    package_code: str | None = None
+
+
+class ShipmentRequestItem(BaseModel):
+    """Model for one item on a shipment request: what a packer sees on the pick list."""
+
+    name: str
+    quantity: int
+    sku: str | None = None
+    unit_price: float | None = None
+    external_order_item_id: str | None = None
+
+
+class ShipmentRequest(BaseModel):
+    """Model for the body of one shipment to create or update.
+
+    ``ship_from`` and ``warehouse_id`` are alternatives: ShipStation refuses both. Fields left
+    ``None`` are left off the wire, so an update changes only what it names.
+    """
+
+    ship_to: Address | None = None
+    ship_from: Address | None = None
+    warehouse_id: str | None = None
+    store_id: str | None = None
+    external_shipment_id: str | None = None
+    shipment_number: str | None = None
+    carrier_id: str | None = None
+    service_code: str | None = None
+    requested_shipment_service: str | None = None
+    ship_by_date: datetime | None = None
+    items: list[ShipmentRequestItem] | None = None
+    packages: list[Package] | None = None
+    advanced_options: AdvancedShipmentOptions | None = None
+    internal_notes: str | None = None
+    notes_to_buyer: str | None = None
+
+
+class CreatedShipment(Shipment):
+    """Model for one shipment in a create response, with the errors ShipStation found in it."""
+
+    errors: list[dict[str, Any]] | None = None
+
+
+class CreateShipmentsResponse(BaseModel):
+    """Response model for the create shipments API."""
+
+    has_errors: bool = False
+    shipments: list[CreatedShipment]
+
+
+class Label(BaseModel):
+    """Model for a shipping label: what was bought, for which shipment, and its tracking number."""
+
+    label_id: str
+    status: str | None = None
+    shipment_id: str | None = None
+    external_shipment_id: str | None = None
+    external_order_id: str | None = None
+    ship_date: ShipStationDate | None = None
+    created_at: datetime | None = None
+    shipment_cost: MonetaryValue | None = None
+    tracking_number: str | None = None
+    tracking_url: str | None = None
+    tracking_status: str | None = None
+    is_return_label: bool | None = None
+    batch_id: str | None = None
+    carrier_id: str | None = None
+    carrier_code: str | None = None
+    service_code: str | None = None
+    voided: bool | None = None
+    voided_at: datetime | None = None
+    ship_to: Address | None = None
+
+
+class LabelsList(BaseModel):
+    """Response model for the labels list API."""
+
+    labels: list[Label]
+    total: int
+    page: int
+    pages: int
+    links: PaginationLinks | None = None
+
+
+class WebhookHeader(BaseModel):
+    """Model for one header ShipStation sends with every call of a webhook."""
+
+    key: str
+    value: str
+
+
+class Webhook(BaseModel):
+    """Model for a webhook subscription."""
+
+    webhook_id: str
+    url: str
+    event: str
+    name: str | None = None
+    store_id: str | None = None
+    headers: list[WebhookHeader] = []

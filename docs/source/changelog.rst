@@ -1,6 +1,12 @@
 Changelog
 =========
 
+- :release:`1.1.0 <8th October 2026>`
+- :feature:`-` Create shipments and update a shipment that has no label yet
+- :feature:`-` List and iterate labels, and follow a ``label_created_v2`` webhook's
+  ``resource_url`` (refused unless it is a labels list on ``api.shipstation.com``)
+- :feature:`-` List webhooks and create one, with the headers ShipStation sends on every call
+
 - :release:`1.0.0 <8th July 2026>`
 - :feature:`-` Rewrite as a ShipStation API v2 client: ``api-key`` header auth against
   ``https://api.shipstation.com``, shipments list/get/iterate (v2 shipments are v1 orders),
