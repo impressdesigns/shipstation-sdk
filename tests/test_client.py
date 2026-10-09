@@ -267,6 +267,7 @@ def test_create_shipments_posts_the_requests_without_unset_fields(monkeypatch: p
             ShipmentRequest(
                 external_shipment_id="IDI7",
                 warehouse_id="se-1",
+                create_sales_order=True,
                 ship_to=Address(name="Pat", address_line1="1 Elm St"),
                 packages=[Package(weight=Weight(value=1, unit="pound"))],
                 items=[ShipmentRequestItem(name="Tee", quantity=2)],
@@ -282,6 +283,7 @@ def test_create_shipments_posts_the_requests_without_unset_fields(monkeypatch: p
             {
                 "external_shipment_id": "IDI7",
                 "warehouse_id": "se-1",
+                "create_sales_order": True,
                 "ship_to": {"name": "Pat", "address_line1": "1 Elm St"},
                 "packages": [{"weight": {"value": 1.0, "unit": "pound"}}],
                 "items": [{"name": "Tee", "quantity": 2}],

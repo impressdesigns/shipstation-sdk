@@ -229,12 +229,16 @@ class ShipmentRequest(BaseModel):
 
     ``ship_from`` and ``warehouse_id`` are alternatives: ShipStation refuses both. Fields left
     ``None`` are left off the wire, so an update changes only what it names.
+
+    ``create_sales_order`` is read on create only: without it, ShipStation keeps the shipment out
+    of its Orders tab.
     """
 
     ship_to: Address | None = None
     ship_from: Address | None = None
     warehouse_id: str | None = None
     store_id: str | None = None
+    create_sales_order: bool | None = None
     external_shipment_id: str | None = None
     shipment_number: str | None = None
     carrier_id: str | None = None
