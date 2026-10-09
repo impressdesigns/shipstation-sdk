@@ -1,6 +1,10 @@
 Changelog
 =========
 
+- :release:`1.2.0 <9th October 2026>`
+- :feature:`-` ``ShipmentRequest.create_sales_order``, which a new shipment needs to show in
+  ShipStation's Orders tab
+
 - :release:`1.1.0 <8th October 2026>`
 - :feature:`-` Create shipments and update a shipment that has no label yet
 - :feature:`-` List and iterate labels, and follow a ``label_created_v2`` webhook's
