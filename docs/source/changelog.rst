@@ -1,6 +1,19 @@
 Changelog
 =========
 
+- :release:`1.4.0 <20th October 2026>`
+- :feature:`-` Every field ShipStation API v2 documents is on the SDK's models: shipments (customs,
+  tax identifiers, batch ids), advanced options, addresses (geolocation), packages (products, with
+  dangerous goods and CPSC details), labels (downloads, refund details, rate details, delivery
+  prediction, the shipment), label packages, carriers (services, package types, options) and the
+  carriers list envelope
+- :feature:`-` ``Shipment.packages``, ``Shipment.customs`` and ``Shipment.tax_identifiers`` are
+  models instead of dicts; ``customs_item_id``, like ``shipment_package_id``, is read but never sent
+- :feature:`-` ``ShipmentRequest`` and ``ShipmentRequestItem`` take every documented writable field,
+  including ``validate_address``; fields left ``None`` still stay off the wire
+- :feature:`-` A created shipment reads its ``address_validation`` and its errors as the strings
+  ShipStation documents; a webhook reads the integer ``store_id`` ShipStation documents
+
 - :release:`1.3.0 <20th October 2026>`
 - :feature:`-` ``Package`` carries every field ShipStation documents for a shipment's package
   (dimensions, label messages, external package id, insured value, content description, products),
