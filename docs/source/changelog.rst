@@ -1,6 +1,12 @@
 Changelog
 =========
 
+- :release:`1.3.0 <20th October 2026>`
+- :feature:`-` ``Package`` carries every field ShipStation documents for a shipment's package
+  (dimensions, label messages, external package id, insured value, content description, products),
+  so a shipment read back and sent again keeps them
+- :feature:`-` ``Label.packages``: each package's tracking number, sequence and external package id
+
 - :release:`1.2.0 <9th October 2026>`
 - :feature:`-` ``ShipmentRequest.create_sales_order``, which a new shipment needs to show in
   ShipStation's Orders tab
