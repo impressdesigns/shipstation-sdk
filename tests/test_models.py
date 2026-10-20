@@ -3,7 +3,7 @@
 from datetime import UTC, date, datetime
 from typing import Any
 
-from shipstation_sdk.models import CarriersList, Shipment, ShipmentsList, Weight
+from shipstation_sdk.models import CarriersList, Label, Package, Shipment, ShipmentsList, Weight
 
 # A realistic v2 shipment, hand-built from the published OpenAPI schema.
 SHIPMENT_JSON: dict[str, Any] = {
@@ -138,3 +138,46 @@ def test_carriers_list_retains_partial_success_errors() -> None:
 
     assert [carrier.carrier_code for carrier in carriers_list.carriers] == ["ups"]
     assert carriers_list.errors == [{"error": "connection to stamps_com failed"}]
+
+
+def test_a_package_read_back_is_sent_again_as_it_was() -> None:
+    """A shipment's package keeps every field it was read with, except ShipStation's own read-only id."""
+    package = {
+        "shipment_package_id": "se-123456",
+        "package_code": "package",
+        "weight": {"value": 12.5, "unit": "pound"},
+        "dimensions": {"unit": "inch", "length": 16, "width": 12, "height": 10},
+        "insured_value": {"currency": "usd", "amount": 0},
+        "label_messages": {"reference1": "PO 4500123", "reference2": None, "reference3": None},
+        "external_package_id": "CTN12",
+    }
+
+    sent = Package.model_validate(package).model_dump(mode="json", exclude_none=True)
+
+    assert sent == {
+        "package_code": "package",
+        "weight": {"value": 12.5, "unit": "pound"},
+        "dimensions": {"unit": "inch", "length": 16.0, "width": 12.0, "height": 10.0},
+        "insured_value": {"currency": "usd", "amount": 0.0},
+        "label_messages": {"reference1": "PO 4500123"},
+        "external_package_id": "CTN12",
+    }
+
+
+def test_a_label_reads_each_packages_tracking_number() -> None:
+    """A multi-package label carries one tracking number per package, in shipment order."""
+    label = Label.model_validate(
+        {
+            "label_id": "se-1095",
+            "tracking_number": "794630698100",
+            "packages": [
+                {"package_id": 1, "tracking_number": "794630698100", "external_package_id": "CTN1", "sequence": 1},
+                {"package_id": 2, "tracking_number": "794630698177", "external_package_id": "CTN2", "sequence": 2},
+            ],
+        },
+    )
+
+    assert [(package.external_package_id, package.tracking_number) for package in label.packages] == [
+        ("CTN1", "794630698100"),
+        ("CTN2", "794630698177"),
+    ]

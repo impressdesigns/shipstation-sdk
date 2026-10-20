@@ -207,11 +207,59 @@ class TagsList(BaseModel):
     tags: list[Tag]
 
 
+class Dimensions(BaseModel):
+    """Model for a package's dimensions: ShipStation needs all three sides and the unit."""
+
+    length: float
+    width: float
+    height: float
+    unit: str = "inch"
+
+
+class LabelMessages(BaseModel):
+    """Model for the custom messages printed on one package's label.
+
+    How many lines print, and how long each may be, depends on the carrier: ShipStation documents three
+    for USPS and FedEx and two for UPS and OnTrac.
+    """
+
+    reference1: str | None = None
+    reference2: str | None = None
+    reference3: str | None = None
+
+
 class Package(BaseModel):
-    """Model for one package on a shipment request: ShipStation needs at least one."""
+    """Model for one package of a shipment, as a request sends it and a shipment returns it.
+
+    Every field ShipStation documents for a shipment's package is here, so a shipment read back and
+    sent again (an update replaces the whole shipment) keeps what was set on it. ``shipment_package_id``
+    is ShipStation's own and read-only: it is read but never sent.
+    """
 
     weight: Weight
+    dimensions: Dimensions | None = None
+    package_id: str | None = None
     package_code: str | None = None
+    package_name: str | None = None
+    insured_value: MonetaryValue | None = None
+    label_messages: LabelMessages | None = None
+    external_package_id: str | None = None
+    content_description: str | None = None
+    products: list[dict[str, Any]] | None = None
+    shipment_package_id: str | None = Field(default=None, exclude=True)
+
+
+class LabelPackage(BaseModel):
+    """Model for one package of a bought label: its own tracking number and where it falls in the shipment."""
+
+    package_id: int | None = None
+    package_code: str | None = None
+    weight: Weight | None = None
+    dimensions: Dimensions | None = None
+    tracking_number: str | None = None
+    label_messages: LabelMessages | None = None
+    external_package_id: str | None = None
+    sequence: int | None = None
 
 
 class ShipmentRequestItem(BaseModel):
@@ -266,7 +314,7 @@ class CreateShipmentsResponse(BaseModel):
 
 
 class Label(BaseModel):
-    """Model for a shipping label: what was bought, for which shipment, and its tracking number."""
+    """Model for a shipping label: what was bought, for which shipment, and its tracking numbers (one per package)."""
 
     label_id: str
     status: str | None = None
@@ -287,6 +335,7 @@ class Label(BaseModel):
     voided: bool | None = None
     voided_at: datetime | None = None
     ship_to: Address | None = None
+    packages: list[LabelPackage] = []
 
 
 class LabelsList(BaseModel):
