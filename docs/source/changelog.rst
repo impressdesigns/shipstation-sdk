@@ -1,6 +1,13 @@
 Changelog
 =========
 
+- :release:`1.5.0 <21st October 2026>`
+- :feature:`-` Track packages: ``start_tracking`` and ``stop_tracking`` subscribe to and unsubscribe
+  from a package's tracking updates, and ``get_tracking`` reads its status and events as a
+  ``TrackingInfo`` (with ``TrackEvent`` events)
+- :feature:`-` ``TrackWebhookEvent`` reads the body of a ``track`` (``API_TRACK``) or
+  ``track_event_v2`` (``TRACK_EVENT_V2``) webhook call
+
 - :release:`1.4.0 <20th October 2026>`
 - :feature:`-` Every field ShipStation API v2 documents is on the SDK's models: shipments (customs,
   tax identifiers, batch ids), advanced options, addresses (geolocation), packages (products, with

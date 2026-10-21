@@ -19,6 +19,7 @@ from .models import (
     ShipmentRequest,
     ShipmentsList,
     TagsList,
+    TrackingInfo,
     Webhook,
     WebhookHeader,
 )
@@ -251,3 +252,35 @@ class ShipStationClient:
         response = self.make_request("POST", "/v2/environment/webhooks", json=body)
         response.raise_for_status()
         return Webhook.model_validate(response.json())
+
+    def start_tracking(self, carrier_code: str, tracking_number: str, *, carrier_id: str | None = None) -> None:
+        """Subscribe to a package's tracking updates, which then arrive through ``track`` webhooks.
+
+        ``carrier_id`` names which of the account's connections to the carrier to track with.
+        """
+        params = {"carrier_code": carrier_code, "tracking_number": tracking_number}
+        if carrier_id is not None:
+            params["carrier_id"] = carrier_id
+        response = self.make_request("POST", "/v2/tracking/start", params=params)
+        response.raise_for_status()
+
+    def stop_tracking(self, carrier_code: str, tracking_number: str) -> None:
+        """Unsubscribe from a package's tracking updates."""
+        response = self.make_request(
+            "POST",
+            "/v2/tracking/stop",
+            params={"carrier_code": carrier_code, "tracking_number": tracking_number},
+        )
+        response.raise_for_status()
+
+    def get_tracking(self, carrier_code: str, tracking_number: str, *, carrier_id: str | None = None) -> TrackingInfo:
+        """Get a package's tracking status and events.
+
+        ``carrier_id`` names which of the account's connections to the carrier to ask.
+        """
+        params = {"carrier_code": carrier_code, "tracking_number": tracking_number}
+        if carrier_id is not None:
+            params["carrier_id"] = carrier_id
+        response = self.make_request("GET", "/v2/tracking", params=params)
+        response.raise_for_status()
+        return TrackingInfo.model_validate(response.json())

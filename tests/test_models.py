@@ -3,6 +3,9 @@
 from datetime import UTC, date, datetime
 from typing import Any
 
+import pytest
+from pydantic import ValidationError
+
 from shipstation_sdk.models import (
     CarriersList,
     CreatedShipment,
@@ -12,6 +15,8 @@ from shipstation_sdk.models import (
     ShipmentRequest,
     ShipmentsList,
     Tag,
+    TrackingInfo,
+    TrackWebhookEvent,
     Webhook,
     Weight,
 )
@@ -322,3 +327,85 @@ def test_a_webhook_reads_the_integer_store_id_the_schema_documents() -> None:
     )
 
     assert webhook.store_id == 123456
+
+
+# Shaped like ShipStation's documented track webhook payload, with invented values.
+TRACK_WEBHOOK_JSON: dict[str, Any] = {
+    "resource_url": "https://api.shipstation.com/v2/labels/se-1234/track",
+    "resource_type": "API_TRACK",
+    "data": {
+        "tracking_number": "1ZTEST0000000002",
+        "tracking_url": "https://carrier.example/track?n=1ZTEST0000000002",
+        "status_code": "DE",
+        "status_detail_code": "DELIVERED",
+        "status_detail_description": "Your shipment has been delivered.",
+        "carrier_code": "ups",
+        "carrier_id": 3,
+        "carrier_detail_code": "D",
+        "status_description": "Delivered",
+        "carrier_status_code": "D",
+        "carrier_status_description": "Delivered",
+        "ship_date": "2026-10-18T00:00:00Z",
+        "estimated_delivery_date": "2026-10-21T00:00:00",
+        "actual_delivery_date": "2026-10-20T17:05:00Z",
+        "exception_description": None,
+        "events": [
+            {
+                "occurred_at": "2026-10-20T17:05:00Z",
+                "carrier_occurred_at": "2026-10-20T12:05:00",
+                "description": "Delivered",
+                "city_locality": "Testville",
+                "state_province": "TX",
+                "postal_code": "00000",
+                "country_code": "US",
+                "company_name": None,
+                "signer": "FRONT DOOR",
+                "event_code": "KB",
+                "carrier_detail_code": "D",
+                "status_code": "DE",
+                "status_detail_code": "DELIVERED",
+                "status_detail_description": "Your shipment has been delivered.",
+                "status_description": "Delivered",
+                "carrier_status_code": "D",
+                "carrier_status_description": "Delivered",
+                "proof_of_delivery_url": None,
+                "latitude": 30.5,
+                "longitude": -97.5,
+            },
+        ],
+    },
+}
+
+
+def test_a_track_webhook_reads_the_packages_tracking_info() -> None:
+    """A ``track`` webhook body carries the tracking info as the tracking endpoint returns it."""
+    event = TrackWebhookEvent.model_validate(TRACK_WEBHOOK_JSON)
+
+    assert event.resource_type == "API_TRACK"
+    assert event.data.status_code == "DE"
+    assert event.data.carrier_id == 3
+    assert event.data.actual_delivery_date == datetime(2026, 10, 20, 17, 5, tzinfo=UTC)
+    assert event.data.estimated_delivery_date == datetime(2026, 10, 21)  # noqa: DTZ001 -- documented without an offset
+    track_event = event.data.events[0]
+    assert track_event.signer == "FRONT DOOR"
+    assert track_event.status_detail_code == "DELIVERED"
+    assert (track_event.latitude, track_event.longitude) == (30.5, -97.5)
+
+
+def test_a_track_event_v2_webhook_parses_too() -> None:
+    """The ``track_event_v2`` webhook names its own resource type around the same tracking info."""
+    event = TrackWebhookEvent.model_validate({**TRACK_WEBHOOK_JSON, "resource_type": "TRACK_EVENT_V2"})
+
+    assert event.data.tracking_number == "1ZTEST0000000002"
+
+
+def test_a_track_webhook_refuses_another_events_body() -> None:
+    """A label webhook's body is not mistaken for a tracking one."""
+    with pytest.raises(ValidationError):
+        TrackWebhookEvent.model_validate({**TRACK_WEBHOOK_JSON, "resource_type": "LABEL_CREATED_V2"})
+
+
+def test_tracking_info_refuses_an_undocumented_status_code() -> None:
+    """The high-level status is one of the eight codes ShipStation documents."""
+    with pytest.raises(ValidationError):
+        TrackingInfo.model_validate({"tracking_number": "1ZTEST0000000003", "status_code": "ZZ"})
