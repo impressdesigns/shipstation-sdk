@@ -1,7 +1,7 @@
 """ShipStation API v2 models."""
 
 from datetime import date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import AliasChoices, BaseModel, BeforeValidator, Field
 
@@ -779,3 +779,70 @@ class Webhook(BaseModel):
     # The schema documents an integer store id here, unlike the ``se-`` strings everywhere else.
     store_id: int | str | None = None
     headers: list[WebhookHeader] = []
+
+
+#: The high-level tracking status: unknown, accepted, in transit, delivered, exception, delivery attempt,
+#: not yet in system, and delivered to a collection location.
+type TrackingStatusCode = Literal["UN", "AC", "IT", "DE", "EX", "AT", "NY", "SP"]
+
+
+class TrackEvent(BaseModel):
+    """Model for one scan or status change a carrier reports for a package, and where it happened."""
+
+    occurred_at: datetime | None = None
+    # The carrier's local time, without an offset.
+    carrier_occurred_at: datetime | None = None
+    # In the documented webhook payload, though not in the tracking endpoint's schema.
+    description: str | None = None
+    city_locality: str | None = None
+    state_province: str | None = None
+    postal_code: str | None = None
+    country_code: str | None = None
+    company_name: str | None = None
+    signer: str | None = None
+    event_code: str | None = None
+    carrier_detail_code: str | None = None
+    status_code: TrackingStatusCode | None = None
+    # One of the many detail codes ShipStation documents, such as ``DELIVERED`` or ``OUT_FOR_DELIVERY``.
+    status_detail_code: str | None = None
+    status_description: str | None = None
+    status_detail_description: str | None = None
+    carrier_status_code: str | None = None
+    carrier_status_description: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    proof_of_delivery_url: str | None = None
+
+
+class TrackingInfo(BaseModel):
+    """Model for where a package is: its tracking status, delivery dates and every event the carrier reported."""
+
+    tracking_number: str
+    tracking_url: str | None = None
+    status_code: TrackingStatusCode | None = None
+    # One of the many detail codes ShipStation documents, such as ``DELIVERED`` or ``OUT_FOR_DELIVERY``.
+    status_detail_code: str | None = None
+    status_detail_description: str | None = None
+    carrier_code: str | None = None
+    # An integer here, unlike the ``se-`` carrier ids everywhere else.
+    carrier_id: int | None = None
+    carrier_detail_code: str | None = None
+    status_description: str | None = None
+    carrier_status_code: str | None = None
+    carrier_status_description: str | None = None
+    ship_date: datetime | None = None
+    estimated_delivery_date: datetime | None = None
+    actual_delivery_date: datetime | None = None
+    exception_description: str | None = None
+    events: list[TrackEvent] = []
+
+
+class TrackWebhookEvent(BaseModel):
+    """Model for the body of a tracking webhook call: the package's tracking info, and where to fetch it again.
+
+    ``API_TRACK`` is the ``track`` event's resource type and ``TRACK_EVENT_V2`` the ``track_event_v2`` one's.
+    """
+
+    resource_url: str
+    resource_type: Literal["API_TRACK", "TRACK_EVENT_V2"]
+    data: TrackingInfo

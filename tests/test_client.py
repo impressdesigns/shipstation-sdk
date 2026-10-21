@@ -7,7 +7,7 @@ from http import HTTPStatus
 from typing import Any
 
 import pytest
-from niquests import Response
+from niquests import HTTPError, Response
 
 from shipstation_sdk import ShipStationClient
 from shipstation_sdk.client import (
@@ -370,3 +370,76 @@ def test_create_webhook_sends_its_headers(monkeypatch: pytest.MonkeyPatch) -> No
         "url": "https://x.test/hook",
         "headers": [{"key": "x-token", "value": "secret"}],
     }
+
+
+TRACKING_JSON: dict[str, Any] = {
+    "tracking_number": "1ZTEST0000000001",
+    "tracking_url": "https://carrier.example/track?n=1ZTEST0000000001",
+    "status_code": "IT",
+    "carrier_code": "ups",
+    "carrier_id": 7,
+    "carrier_detail_code": "OT",
+    "carrier_status_code": "I",
+    "events": [{"occurred_at": "2026-10-20T14:00:00Z", "status_code": "IT", "city_locality": "Testville"}],
+}
+
+
+@pytest.mark.parametrize(
+    ("method_name", "path"),
+    [("start_tracking", "/v2/tracking/start"), ("stop_tracking", "/v2/tracking/stop")],
+)
+def test_start_and_stop_tracking_post_the_package_as_query_params(
+    monkeypatch: pytest.MonkeyPatch,
+    method_name: str,
+    path: str,
+) -> None:
+    """Subscribing and unsubscribing name the package in the query and accept the empty 204."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_response(204)])
+
+    getattr(client, method_name)("ups", "1ZTEST0000000001")
+
+    call = recorder.calls[0]
+    assert (call["method"], call["url"]) == ("POST", path)
+    assert call["params"] == {"carrier_code": "ups", "tracking_number": "1ZTEST0000000001"}
+    assert "json" not in call
+
+
+def test_start_tracking_sends_the_carrier_id_when_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A carrier connection id reaches the query params only when named."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_response(204)])
+
+    client.start_tracking("ups", "1ZTEST0000000001", carrier_id="se-42")
+
+    assert recorder.calls[0]["params"] == {
+        "carrier_code": "ups",
+        "tracking_number": "1ZTEST0000000001",
+        "carrier_id": "se-42",
+    }
+
+
+def test_start_tracking_raises_when_shipstation_refuses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A refused subscription is not silently dropped."""
+    client = ShipStationClient(api_key="test-key")
+    _record(client, monkeypatch, [_response(400, {"errors": []})])
+
+    with pytest.raises(HTTPError):
+        client.start_tracking("ups", "1ZTEST0000000001")
+
+
+def test_get_tracking_reads_the_packages_status_and_events(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``get_tracking`` GETs the tracking path with the package in the query and parses the answer."""
+    client = ShipStationClient(api_key="test-key")
+    recorder = _record(client, monkeypatch, [_response(200, TRACKING_JSON)])
+
+    tracking = client.get_tracking("ups", "1ZTEST0000000001")
+
+    call = recorder.calls[0]
+    assert (call["method"], call["url"]) == ("GET", "/v2/tracking")
+    assert call["params"] == {"carrier_code": "ups", "tracking_number": "1ZTEST0000000001"}
+    assert tracking.tracking_number == "1ZTEST0000000001"
+    assert tracking.status_code == "IT"
+    assert tracking.carrier_id == 7
+    assert tracking.events[0].occurred_at == datetime(2026, 10, 20, 14, tzinfo=UTC)
+    assert tracking.events[0].city_locality == "Testville"
