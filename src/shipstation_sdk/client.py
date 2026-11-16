@@ -1,11 +1,10 @@
 """Interacting with ShipStation."""
 
 import time
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from http import HTTPStatus
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, quote, urlsplit
 
 import niquests
@@ -24,6 +23,9 @@ from .models import (
     WebhookHeader,
 )
 from .parameters import LabelListParameters, ShipmentListParameters
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 #: The only host a webhook's ``resource_url`` may name: anything else is not ShipStation's.
 API_HOST = "api.shipstation.com"
@@ -50,7 +52,7 @@ def _retry_after_seconds(response: niquests.Response) -> float:
     except ValueError:
         try:
             seconds = (parsedate_to_datetime(header) - datetime.now(tz=UTC)).total_seconds()
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return DEFAULT_RETRY_AFTER_SECONDS
     return min(max(seconds, 0.0), MAX_RETRY_AFTER_SECONDS)
 

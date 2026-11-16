@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # A new push to a pull request replaces its run; main always finishes.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          # The newest uv whose checksum this setup-uv release bundles; Dependabot moves it with the action.
+          version: "latest-known"
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Sync dependencies
+        run: uv sync --locked --group dev --group tests
+
+      - name: Run prek
+        run: uv run prek run --all-files
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Run Ruff checks
+        run: uv run ruff check --output-format=github .
+
+      - name: Run mypy
+        run: uv run mypy --strict src/ tests/
+
+      - name: Run ty
+        run: uv run ty check --output-format=github .
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      code-quality: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: true
+          # The newest uv whose checksum this setup-uv release bundles; Dependabot moves it with the action.
+          version: "latest-known"
+
+      - name: Setup Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: "pyproject.toml"
+
+      - name: Sync dependencies
+        run: uv sync --locked --group dev --group tests
+
+      - name: Run tests
+        run: uv run python -m coverage run -m pytest -v
+
+      - name: Create coverage report
+        if: ${{ !cancelled() }}
+        run: uv run coverage xml
+
+      # A fork's token and Dependabot's are read-only, so the upload would fail there.
+      - name: Upload coverage report
+        if: >-
+          ${{ !cancelled() && (github.event_name != 'pull_request'
+          || (github.event.pull_request.head.repo.full_name == github.repository
+              && github.event.pull_request.user.login != 'dependabot[bot]')) }}
+        uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
+        with:
+          file: coverage.xml
+          language: Python
+          label: code-coverage/pytest
