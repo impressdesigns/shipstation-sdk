@@ -1,6 +1,8 @@
 Changelog
 =========
 
+- :support:`-` Require Python 3.14, the floor the other Impress Designs SDKs already share
+
 - :release:`1.5.0 <21st October 2026>`
 - :feature:`-` Track packages: ``start_tracking`` and ``stop_tracking`` subscribe to and unsubscribe
   from a package's tracking updates, and ``get_tracking`` reads its status and events as a

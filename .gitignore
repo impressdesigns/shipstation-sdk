@@ -4,6 +4,13 @@ dist
 
 # Cache
 __pycache__
+.cache/
 
 # Docs
-docs/build
+site/
+
+# Test reporting
+coverage.xml
+
+# JetBrains
+.idea
